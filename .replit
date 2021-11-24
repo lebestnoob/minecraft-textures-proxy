@@ -1,0 +1,2 @@
+run = "node server.js"
+language = "nodejs" # optional
