@@ -90,9 +90,27 @@ app.get("/session/*", async (req, res) => {
   res.sendStatus(401);
 });
 
-// Allow post request to anything in /api/ and return the original values from Mojang's API.
+// Show inccorrect method warning when attempting to load POST URI on web browser.
+app.get(['/api/profiles/minecraft', '/api/orders/statistics'], async (req, res) => {
+  res.status(404).json({error: "Method Not Allowed",errorMessage: "The method specified in the request is not allowed for the resource identified by the request URI"});
+});
+
+// Allow post request to /api/profiles/minecraft and return the original values from Mojang's API.
 app.post('/api/profiles/minecraft', (req, res) => {
 axios.post("https://api.mojang.com/profiles/minecraft", 
+    req.body
+  )
+  .then(function (response) {
+    res.send(response.data);
+  })
+  .catch(function (error) {
+    res.send("Error POSTing " + error);
+  });
+});
+
+// Allow post request to /api/orders/statistics and return the original values from Mojang's API.
+app.post('/api/orders/statistics', (req, res) => {
+axios.post("https://api.mojang.com/orders/statistics", 
     req.body
   )
   .then(function (response) {
