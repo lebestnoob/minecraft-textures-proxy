@@ -167,7 +167,6 @@ app.listen(port, function () {
 
 setInterval(async () => {
   await fetch(
-    "https://test.lebestnoob.repl.co/"
-    // Change this to your project url if using Replit, Glitch.me, or a similar service to keep it online.
+    "https://test.lebestnoob.repl.co/" // Change this to your project url if using Replit, Glitch.me, or a similar service to keep it online.
   ).then(console.log("Alive!"));
 }, 240000);
