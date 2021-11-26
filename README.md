@@ -1,5 +1,6 @@
 # Mojang API Proxy
-## A node app built to proxy request to Mojang's session server and API.
+## A node app built to proxy request to Mojang's session server and API. This was built to be used with 
+the [CustomSkinLoader](https://github.com/xfl03/MCCustomSkinLoader) mod.
 
 ### Usage:
 
