@@ -141,7 +141,7 @@ app.get("/api/", async (req, res) => {
     });
 });
 
-// If anything /textures/ is sent, send a proxied version of textures.mojang.com.
+// If anything /textures/ is sent, send a proxied version of textures.minecraft.net.
 app.get("/textures/*", async (req, res) => {
   axios
     .get("http://textures.minecraft.net/" + req.path.replace("/textures", ""), {
@@ -157,7 +157,7 @@ app.get("/textures/*", async (req, res) => {
     });
 });
 
-// If /api is sent, send status of api.mojang.com.
+// If /textures is sent, send status of textures.minecraft.net.
 app.get("/textures/", async (req, res) => {
   axios
     .get("http://textures.minecraft.net")
