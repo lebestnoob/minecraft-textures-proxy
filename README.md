@@ -1,10 +1,9 @@
 # Mojang API Proxy
-## A node app built to proxy request to Mojang's session server and API. This was built to be used with 
-the [CustomSkinLoader](https://github.com/xfl03/MCCustomSkinLoader) mod.
+## A node app built to proxy request to Mojang's session server and API. This was built to be used with the [CustomSkinLoader](https://github.com/xfl03/MCCustomSkinLoader) mod.
 
 ### Usage:
 
-The proxied version this provides shows the same results Mojang gives, with the exception of the session server. If you are retriving a skin from there, the texture URI will automatically be converted to a base64 data URI.
+The proxied version this provides shows the same results Mojang gives, with the exception of the session server. If you are retriving a skin from there, the texture URI will automatically be proxied too. 
 
 To access the sessionserver, send all requests to the root url, `domain.tld/ANYTHING`. For example, to obtain a players skin, the URI syntax would be  `domain.tld/session/minecraft/profile/UUID`. To retrieve Notch's skin, the URI would be  `domain.tld/session/minecraft/profile/069a79f444e94726a5befca90e38aaf5`. For more information on how to use the sessionserver, visit https://wiki.vg/Mojang_API.
 

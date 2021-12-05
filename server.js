@@ -6,9 +6,11 @@ const port = 3000;
 
 "use strict";
 
-// Disable caching on Express.JS.
+// Add headers: disable caching and other methods
+app.disable("x-powered-by");
 app.use((req, res, next) => {
   res.append("Cache-Control", "no-store");
+  res.append("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
   next();
 });
 
@@ -38,7 +40,7 @@ app.get("/session/minecraft/profile/", async (req, res) => {
 });
 });
 
-// Proxy all requests to /session/minecraft/profile/ and change the texture to a base64 value.
+// Proxy all requests to /session/minecraft/profile/ and change the texture to a proxied version.
 app.get("/session/minecraft/profile/*", async (req, res) => {
   const uri = "https://sessionserver.mojang.com" + req.path;
 
@@ -58,21 +60,14 @@ app.get("/session/minecraft/profile/*", async (req, res) => {
     let decoded = Buffer.from(encoded, "base64").toString("utf8");
     let data_1 = JSON.parse(decoded);
 
-    let image = await axios.get(data_1.textures.SKIN.url, {
-      responseType: "arraybuffer",
-    });
-    let returnedB64Skin =
-      "data:image/png;base64," + Buffer.from(image.data).toString("base64");
+    let image = data_1.textures.SKIN.url.replace(/^.*\/\/[^\/]+/, '');
 
-    data_1.textures.SKIN.url = returnedB64Skin;
+    data_1.textures.SKIN.url = `${req.protocol}://${req.get('host')}/textures${image}`;
 
     if ("CAPE" in data_1.textures) {
-      let image = await axios.get(data_1.textures.CAPE.url, {
-        responseType: "arraybuffer",
-      });
-      let returnedB64Cape =
-        "data:image/png;base64," + Buffer.from(image.data).toString("base64");
-      data_1.textures.CAPE.url = returnedB64Cape;
+      let image = data_1.textures.CAPE.url.replace(/^.*\/\/[^\/]+/, '');
+
+      data_1.textures.CAPE.url =`${req.protocol}://${req.get('host')}/textures${image}`;
     }
 
     let string = JSON.stringify(data_1);
@@ -138,6 +133,34 @@ app.get("/api/*", async (req, res) => {
 app.get("/api/", async (req, res) => {
   axios
     .get("https://api.mojang.com")
+    .then((response) => {
+      return res.sendStatus(200);
+    })
+    .catch((error) => {
+      res.sendStatus(502);
+    });
+});
+
+// If anything /textures/ is sent, send a proxied version of textures.mojang.com.
+app.get("/textures/*", async (req, res) => {
+  axios
+    .get("http://textures.minecraft.net/" + req.path.replace("/textures", ""), {
+      responseType: "arraybuffer",
+    })
+    .then((response) => {
+      res.append("Content-Type", "image/png");
+      return res.send(Buffer.from(response.data));
+    })
+    .catch((error) => {
+		res.append("Content-Type", "text/plain");
+      res.sendStatus(404);
+    });
+});
+
+// If /api is sent, send status of api.mojang.com.
+app.get("/textures/", async (req, res) => {
+  axios
+    .get("http://textures.minecraft.net")
     .then((response) => {
       return res.sendStatus(200);
     })
