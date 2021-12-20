@@ -1,6 +1,7 @@
 import fetch from "node-fetch";
 import express from "express";
 import axios from "axios";
+import sharp from "sharp";
 const app = express();
 const port = 3000;
 
@@ -26,7 +27,7 @@ app.use(function(err, req, res, next) {
   } else next();
 });
 
-// If an empty /session/minecraft/profile path is sent, send a 404 page, like the regular Mojang sessionserver.
+// If /session/minecraft/profile is just sent, send a 404 error.
 app.get("/session/minecraft/profile/", async (req, res) => {
   res.status(404).json({
   "message" : "Page Not Found",
@@ -42,7 +43,7 @@ app.get("/session/minecraft/profile/", async (req, res) => {
 
 // Proxy all requests to /session/minecraft/profile/ and change the texture to a proxied version.
 app.get("/session/minecraft/profile/*", async (req, res) => {
-  const uri = "https://sessionserver.mojang.com" + req.path;
+  const uri = `https://sessionserver.mojang.com${req.path}`;
 
   const response = await fetch(uri, {
     method: "GET",
@@ -80,7 +81,7 @@ app.get("/session/minecraft/profile/*", async (req, res) => {
   }
 });
 
-// If an invalid /session/* path is sent, send Unauthorized error status, like the regular Mojang sessionserver.
+// If an invalid /session path is sent, send Unauthorized error message.
 app.get("/session/*", async (req, res) => {
   res.sendStatus(401);
 });
@@ -116,7 +117,7 @@ axios.post("https://api.mojang.com/orders/statistics",
   });
 });
 
-// If anything /api/ is sent, send a proxied version of api.mojang.com.
+// If anything in /api/ is sent, send a proxied version of api.mojang.com.
 app.get("/api/*", async (req, res) => {
   axios
     .get("https://api.mojang.com" + req.path.replace("/api", ""))
@@ -141,7 +142,7 @@ app.get("/api/", async (req, res) => {
     });
 });
 
-// If anything /textures/ is sent, send a proxied version of textures.minecraft.net.
+// If anything in /textures/ is sent, send a proxied version of textures.minecraft.net.
 app.get("/textures/*", async (req, res) => {
   axios
     .get("http://textures.minecraft.net/" + req.path.replace("/textures", ""), {
@@ -169,6 +170,46 @@ app.get("/textures/", async (req, res) => {
     });
 });
 
+// If anything in /of/ is sent, send a proxied version of s.optifine.net.
+app.get("/of/*", async (req, res) => {
+  axios
+    .get("http://s.optifine.net/" + req.path.replace("/of", ""), {
+      responseType: "arraybuffer",
+    })
+    .then((response) => {
+
+// Resize Optifine cape to correct dimmensions.
+    sharp(Buffer.from(response.data))
+        .resize(64, 32, {
+    withoutEnlargement: true
+  })
+  .extend({
+    bottom: 10,
+    right: 18,
+    background: { r: 0, g: 0, b: 0, alpha: 0 }
+  })
+        .png()
+        .toBuffer()
+        .then(data => res.type('png').send(data))
+    })
+    .catch((error) => {
+		res.append("Content-Type", "text/plain");
+      res.sendStatus(404);
+    });
+});
+
+// If /of is sent, send status of optifine.net.
+app.get("/of/", async (req, res) => {
+  axios
+    .get("http://optifine.net/")
+    .then((response) => {
+      return res.sendStatus(200);
+    })
+    .catch((error) => {
+      res.sendStatus(502);
+    });
+});
+
 // Proxy all root url requests to Mojang's session server.
 app.get("/*", async (req, res) => {
   res.append("Content-Type", "text/plain");
@@ -183,11 +224,12 @@ app.get("/*", async (req, res) => {
     });
 });
 
-// Expose Express.JS server.
+// Start Express.JS server.
 app.listen(port, function () {
   console.log(`Listening on port ${port}!`);
 });
 
+// Keep server alive for atleast 12 hours
 setInterval(async () => {
   await fetch(
     "https://test.lebestnoob.repl.co/" // Change this to your project url if using Replit, Glitch.me, or a similar service to keep it online.
