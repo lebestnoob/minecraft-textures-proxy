@@ -1,5 +1,5 @@
 {
-  "name": "Minecraft Textures Proxy",
+  "name": "minecraft-textures-proxy",
   "version": "1.0.0",
   "description": "A node app built to proxy Minecraft skins and capes.",
   "main": "server.js",
