@@ -1,18 +1,16 @@
 {
-  "name": "test",
+  "name": "Minecraft Textures Proxy",
   "version": "1.0.0",
-  "description": "",
+  "description": "A node app built to proxy Minecraft skins and capes.",
   "main": "server.js",
   "type": "module",
   "dependencies": {
     "axios": "^0.24.0",
     "express": "^4.17.1",
-    "node-fetch": "^3.0.0",
     "sharp": "^0.29.3"
   },
   "devDependencies": {},
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js"
   },
   "keywords": [],
