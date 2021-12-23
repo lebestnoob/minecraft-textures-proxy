@@ -156,7 +156,7 @@ app.get("/api/*", async (req, res) => {
     .then((response) => {
       const html = response.data;
       if ("" in html) {
-        res.status(404).json(data);
+        res.sendStatus(404);
       } else {
         return res.json(html);
       }
