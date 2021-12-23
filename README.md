@@ -1,5 +1,5 @@
-# Mojang API Proxy
-## A node app built to proxy request to Mojang's session server and API.
+# Minecraft Textures Proxy
+## A node app built to proxy Minecraft skins and capes.
 
 ### Usage:
 
