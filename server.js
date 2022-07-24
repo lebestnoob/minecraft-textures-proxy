@@ -292,7 +292,7 @@ app.use(async(req, res) => {
 const server = app.listen(port, () =>
     console.log(`Listening on port ${port}!`)
 );
-server.setTimeout(5000);
+server.setTimeout(5000); // Timeout after 5 seconds.
 
 // Keep server alive for atleast 12 hours
 if (REPL_PING) {
