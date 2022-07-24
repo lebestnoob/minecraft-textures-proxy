@@ -38,7 +38,7 @@ Method GET: `/of/capes/{USERNAME}.png`
 
 ### Public Instance:
 
-https://test.lebestnoob.repl.co
+https://minecraft-textures-proxy.lebestnoob.repl.co
 
 ### Limitations:
 
