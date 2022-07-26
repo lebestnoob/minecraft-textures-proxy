@@ -2,7 +2,7 @@
     "name": "minecraft-textures-proxy",
     "version": "1.0.0",
     "description": "A node server built to proxy Minecraft skins and capes.",
-    "main": "server.js",
+    "main": "index.js",
     "type": "module",
     "dependencies": {
         "apicache-plus": "^2.3.1",
