@@ -1,293 +1,109 @@
-"use strict";
+import { Hono } from "hono";
+import { timeout } from 'hono/timeout';
+import { cache } from 'hono/cache';
 
-// Imports
-import express from "express";
-import * as dotenv from "dotenv";
-dotenv.config();
-import compression from "compression";
-import apicache from "apicache-plus";
-import { fetchBuilder, MemoryCache } from "node-fetch-cache";
-const fetch = fetchBuilder.withCache(
-    new MemoryCache({
-        ttl: 900000, // 15 minutes
-    })
-);
-import { Headers, bag } from "fetch-headers";
-import sharp from "sharp";
+import { Jimp } from "jimp";
+import { isUUID } from "validator";
 
-const app = express();
-const port = process.env.PORT || 3000;
-
-const headers = new Headers({ "Cache-Control": "s-maxage=900, max-age=900" });
-const options = { headers: headers, cache: "force-cache" };
-
-// Add response headers
-app.use((req, res, next) => {
-    res.set("Cache-control", "public, s-maxage=300, max-age=300");
-    res.append("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-    next();
-});
+const app = new Hono();
 
 // Middleware
-app.use(compression());
-app.use(apicache("15 minutes"));
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-app.set("env", "production");
-app.set("json spaces", 2);
+app.use(timeout(5000),
+  cache({
+    cacheName: 'mc-textures-proxy',
+    cacheControl: 'max-age=3600',
+  }))
 
-// Disable stack trace on invalid requests.
-app.use(function(err, req, res, next) {
-    if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
-        res.status(404).send({
-            message: "Page Not Found",
-            path: req.path,
-        });
-    } else next();
-});
+app.get("/", async(c) => c.json({
+        message: "Ok",
+        path: c.req.path,
+    }));
 
-app.get("/", async(req, res) => {
-    res.type("text/plain");
-    return res.sendStatus(200);
-});
 
-// If /session is sent, send status of session.mojang.com.
-app.get("/session/", async(req, res) => {
-    const uri = "https://sessionserver.mojang.com";
-    await fetch(uri, options)
-        .then((response) => {
-            return res.sendStatus(200);
-        })
-        .catch((error) => {
-            res.sendStatus(502);
-        });
-});
+app.get("/:user", async(c) => {
+    let {user} = c.req.param();
+    const {prefix} = c.req.query();
 
-// Proxy all requests to /session/minecraft/profile/ and change the texture to the proxied version.
-app.get("/session/minecraft/profile/:UUID", async(req, res) => {
-    const UUID = req.params.UUID;
-    const unsigned = req.query.unsigned;
-    let query = true;
-    if (unsigned === "false") query = false;
-    const uri = `https://sessionserver.mojang.com/session/minecraft/profile/${UUID}?unsigned=${query}`;
+    let isGeyser, uuid, textureURL, imageData;
+    let type = c.req.query("type") ? c.req.query("type").toUpperCase() : "SKIN";
 
-    await fetch(uri, options)
-        .then((response) => response.json())
-        .then((data) => {
-            if ("error" in data) {
-                res.status(404).json(data);
-            } else {
-                let encoded = data.properties[0].value;
+    if(type === "OPTIFINE" || type === "OF"){
+        await fetch(`http://s.optifine.net/capes/${user}.png`).then((res) => res.arrayBuffer()).then(async (data)=>{
+            const image = await Jimp.fromBuffer(data);
+            const padding = new Jimp({width: 64, height: 32});
+            padding.composite(image);
 
-                let decoded = Buffer.from(encoded, "base64").toString("utf8");
-                let data_1 = JSON.parse(decoded);
-
-                let image = data_1.textures.SKIN.url.replace(/^.*\/\/[^\/]+/, "");
-
-                data_1.textures.SKIN.url = `${req.protocol}://${req.get(
-          "host"
-        )}${image}`;
-
-                if ("CAPE" in data_1.textures) {
-                    let image = data_1.textures.CAPE.url.replace(/^.*\/\/[^\/]+/, "");
-
-                    data_1.textures.CAPE.url = `${req.protocol}://${req.get(
-            "host"
-          )}${image}`;
-                }
-
-                let string = JSON.stringify(data_1, null, 2);
-
-                let fix = Buffer.from(string, "utf8").toString("base64");
-
-                data.properties[0].value = fix;
-
-                return res.json(data);
-            }
-        })
-        .catch((error) => {
-            res.status(404).json({
-                path: req.path,
-                errorMessage: `Not a valid UUID: ${UUID}`,
-                developerMessage: `Not a valid UUID: ${UUID}`,
-            });
-        });
-});
-
-// If /api is sent, send status of api.mojang.com.
-app.get("/api/", async(req, res) => {
-    const uri = "https://api.mojang.com";
-    await fetch(uri, options)
-        .then((response) => {
-            return res.sendStatus(200);
-        })
-        .catch((error) => {
-            res.sendStatus(502);
-        });
-});
-
-// Show incorrect method warning when attempting to load POST URI on web browser.
-app.all("/api/profiles/minecraft", async(req, res) => {
-    if (req.method == "POST") {
-        const uri = "https://api.mojang.com/profiles/minecraft";
-        await fetch(uri, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(req.body),
-            })
-            .then((response) => response.json())
-            .then((data) => {
-                return res.json(data);
-            })
-            .catch((error) => {
-                return res.send("Error POSTing");
-            });
-    } else {
-        return res.status(405).json({
-            error: "Method Not Allowed",
-            errorMessage: "The method specified in the request is not allowed for the resource identified by the request URI",
-            path: req.path,
+            textureURL = await padding.getBase64("image/png");
         });
     }
-});
+    
+    if(!textureURL) {
+        if(!Number.isNaN(Number(user)) && user.length === 16) isGeyser = true; // XUID
+    
+        if(prefix) {
+            user.replace(prefix,"");
+            isGeyser = true;
+        }
+        
+        if(user.startsWith(".") || user.startsWith("*")) {
+            isGeyser = true;
+            user = user.substring(1);
+        }
+        
+        if(isUUID(user, "loose")) {
+            uuid = user;
+            if(uuid.startsWith("00000000-0000-0000"))
+                isGeyser = true;
+        }   
 
-// Allow post request to /api/profiles/minecraft and return the original values from Mojang's API.
-// app.post("/api/profiles/minecraft", async(req, res) => {});
+        if(!uuid && !isGeyser){
+            await fetch(`https://api.mojang.com/users/profiles/minecraft/${user}`).then((res) => res.json())
+                .then((data) => {
+                    if("errorMessage" in data && data.errorMessage.includes("Couldn't find any profile with name")) throw Error();
+                    uuid = data.id
+                }).catch(()=> isGeyser=true); // assume failure means username is bedrock player
+        }
+            
+        if(!isGeyser){
+            let texturesArray;
+            await fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${uuid.replaceAll("-","")}`).then((res)=>res.json())
+            .then((data)=>{
+                let value = Uint8Array.fromBase64(data.properties[0].value);
+                const textures = JSON.parse(new TextDecoder().decode(value));
+                
+                texturesArray = {...textures.textures};
+            });
+            
+            textureURL = texturesArray[type].url; 
+        } else if(Number.isNaN(Number(user)) && !uuid) {
+            await fetch(`https://mcprofile.io/api/v1/bedrock/gamertag/${user}`).then((res)=>res.json())
+            .then((data)=>{
+                textureURL = data.skin;
+            })
+        } else if(Number.isNaN(Number(user))){ // assume fuid
+            await fetch(`https://mcprofile.io/api/v1/bedrock/fuid/${user}`).then((res)=>res.json())
+            .then((data)=>{
+                textureURL = data.skin;
+            })
+        } 
+        else {
+            await fetch(`https://mcprofile.io/api/v1/bedrock/xuid/${user}`).then((res)=>res.json())
+            .then((data)=>{
+                textureURL = data.skin;
+            })
+        }
+    }
+    
+    imageData = await fetch(textureURL).then((res)=>res.body);
+    return c.body(imageData);
 
-// Send a proxied version of api.mojang.com/users/profiles/minecraft/
-app.get("/api/users/profiles/minecraft/:username", async(req, res) => {
-    const user = req.params.username;
-    const at = parseInt(req.query.at);
-    let timestamp = null;
-    if (Number.isInteger(at)) timestamp = at;
-    const uri = `https://api.mojang.com/users/profiles/minecraft/${user}?at=${timestamp}}`;
-
-    await fetch(uri, options)
-        .then((response) => response.json())
-        .then((data) => {
-            // const html = response.data;
-            if ("" in data) {
-                res.sendStatus(404);
-            } else {
-                return res.json(data);
-            }
-        })
-        .catch((error) => {
-            res.sendStatus(404);
-        });
-});
-
-// Send a proxied version of api.mojang.com/user/profiles/uuid/names.
-app.get("/api/user/profiles/:UUID/names", async(req, res) => {
-    const UUID = req.params.UUID;
-    const uri = `https://api.mojang.com/user/profiles/${UUID}/names`;
-
-    await fetch(uri, options)
-        .then((response) => response.json())
-        .then((data) => {
-            // const html = response.data;
-            if ("" in data) {
-                res.sendStatus(404);
-            } else {
-                return res.json(data);
-            }
-        })
-        .catch((error) => {
-            res.sendStatus(404);
-        });
-});
-
-// If /texture is sent, send status of textures.minecraft.net.
-app.get("/texture/", async(req, res) => {
-    const uri = "http://textures.minecraft.net";
-
-    await fetch(uri, options)
-        .then((response) => {
-            return res.sendStatus(200);
-        })
-        .catch((error) => {
-            res.sendStatus(502);
-        });
-});
-
-// Send a proxied version of textures.minecraft.net/texture/.
-app.get("/texture/:hashCode", async(req, res) => {
-    const hashCode = req.params.hashCode;
-    const uri = `http://textures.minecraft.net/texture/${hashCode}`;
-
-    await fetch(uri, options)
-        .then((response) => response.body)
-        .then((response) => {
-            res.type("png");
-            return response.pipe(res);
-        })
-        .catch((error) => {
-            res.type("text/plain");
-            res.sendStatus(404);
-        });
-});
-
-// If /of is sent, send status of s.optifine.net.
-app.get("/of/", async(req, res) => {
-    const uri = "http://s.optifine.net";
-
-    await fetch(uri, options)
-        .then((response) => {
-            return res.sendStatus(200);
-        })
-        .catch((response, error) => {
-            return res.sendStatus(502);
-        });
-});
-
-// Ssend a proxied version of s.optifine.net/capes.
-app.get("/of/capes/:username.png", async(req, res) => {
-    const user = req.params.username;
-    const uri = `http://s.optifine.net/capes/${user}.png`;
-
-    await fetch(uri, options)
-        .then((response) => {
-            if (response.ok) {
-                return response.body;
-            }
-            return Promise.reject(response);
-        })
-        .then((data) => {
-            // Resize OptiFine cape to correct dimensions.
-            const OFCapeResizer = sharp()
-                .resize(46, 22, {
-                    kernel: sharp.kernel.nearest,
-                    fit: sharp.fit.contain,
-                    background: { r: 0, g: 0, b: 0, alpha: 0 },
-                    withoutEnlargement: true,
-                })
-                .extend({
-                    bottom: 10,
-                    right: 18,
-                    background: { r: 0, g: 0, b: 0, alpha: 0 },
-                })
-                .png();
-            res.type("png");
-            return data.pipe(OFCapeResizer).pipe(res);
-        })
-        .catch((error) => {
-            res.type("text/plain");
-            return res.sendStatus(404);
-        });
-});
+})
 
 // 404 error
-app.use(async(req, res) => {
-    res.status(404).json({
-        message: "Page Not Found",
-        path: req.path,
-    });
-});
-
-// Start Express.JS server.
-const server = app.listen(port, () =>
-    console.log(`Listening on port ${port}!`)
+app.notFound(async(c) => c.json({
+        message: "Page not found.",
+        path: c.req.path,
+    })
 );
-server.setTimeout(5000); // Timeout after 5 seconds.
+
+export default app;
