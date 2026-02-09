@@ -68,7 +68,7 @@ app.get("/:user", async(c) => {
             let texturesArray;
             await fetch(`https://api.minetools.eu/profile/${uuid.replaceAll("-","")}`).then((res)=>res.json())
             .then((data)=>{
-                let value = Uint8Array.fromBase64(data.properties[0].value);
+                let value = Uint8Array.fromBase64(data.raw.properties[0].value);
                 const textures = JSON.parse(new TextDecoder().decode(value));
                 
                 texturesArray = {...textures.textures};
