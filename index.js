@@ -17,8 +17,6 @@ import sharp from "sharp";
 
 const app = express();
 const port = process.env.PORT || 3000;
-const REPL_PING = JSON.parse(process.env.REPL_PING) || false;
-const REPL_URL = process.env.REPL_URL;
 
 const headers = new Headers({ "Cache-Control": "s-maxage=900, max-age=900" });
 const options = { headers: headers, cache: "force-cache" };
@@ -293,14 +291,3 @@ const server = app.listen(port, () =>
     console.log(`Listening on port ${port}!`)
 );
 server.setTimeout(5000); // Timeout after 5 seconds.
-
-// Keep server alive for atleast 12 hours
-if (REPL_PING) {
-    setInterval(async() => {
-        await fetch(REPL_URL)
-            .then(console.log("Alive!"))
-            .catch((error) => {
-                console.log("Alive!");
-            });
-    }, 240000);
-}
