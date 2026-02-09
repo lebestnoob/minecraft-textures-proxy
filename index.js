@@ -57,7 +57,7 @@ app.get("/:user", async(c) => {
         }   
 
         if(!uuid && !isGeyser){
-            await fetch(`https://api.mojang.com/users/profiles/minecraft/${user}`).then((res) => res.json())
+            await fetch(`https://api.minetools.eu/uuid/${user}`).then((res) => res.json())
                 .then((data) => {
                     if("errorMessage" in data && data.errorMessage.includes("Couldn't find any profile with name")) throw Error();
                     uuid = data.id
@@ -66,7 +66,7 @@ app.get("/:user", async(c) => {
             
         if(!isGeyser){
             let texturesArray;
-            await fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${uuid.replaceAll("-","")}`).then((res)=>res.json())
+            await fetch(`https://api.minetools.eu/profile/${uuid.replaceAll("-","")}`).then((res)=>res.json())
             .then((data)=>{
                 let value = Uint8Array.fromBase64(data.properties[0].value);
                 const textures = JSON.parse(new TextDecoder().decode(value));
