@@ -17,7 +17,7 @@ Easily download Minecraft (Java and Bedrock) skins
 **Every request is cached for **15** minutes to minimize rate-limiting.**
 
 The API accepts both usernames, UUID, XUID, and FUID. All requests must be sent as GET as a location:
-ie: `example.com/jeb_`
+ie: `minecraft-textures-proxy.lebestnoob.workers.dev.com/jeb_`
 
 If a Java player is unable to be found, the API assumes the user is a Bedrock player.
 
